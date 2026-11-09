@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+venv/
+.venv/
+.env
+leads.csv
+secrets.toml
+.DS_Store
