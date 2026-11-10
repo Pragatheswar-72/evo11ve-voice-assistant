@@ -2,8 +2,10 @@
 
 A voice + text chat assistant that answers questions about Evo11ve's **AI Skills Program** ([evo11ve.ai/for-ai](https://evo11ve.ai/for-ai)) and sends emails automatically for enrollment requests, callback requests and escalations to a human.
 
-**Live app:** _add Streamlit URL here_
-**API:** _add Render URL here_ (`/docs` for Swagger)
+**Live app:** https://evo11ve-ai-skills-assistant.streamlit.app
+**API:** https://evo11ve-assistant-api.onrender.com (`/docs` for Swagger)
+
+> The API runs on Render's free plan, so it sleeps when idle - the first question after a while can take ~30-50 seconds.
 
 ---
 
