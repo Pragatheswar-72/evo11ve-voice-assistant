@@ -2,7 +2,8 @@
 LLM + speech-to-text calls (Groq).
 
 Groq is used because it has a free tier and is fast, which matters for a
-voice assistant. Chat uses Llama 3.3 70B, speech-to-text uses Whisper.
+voice assistant. Chat uses GPT-OSS 120B (Groq retired Llama 3.3 70B),
+speech-to-text uses Whisper.
 """
 
 import json
@@ -10,7 +11,7 @@ import os
 
 from groq import Groq
 
-CHAT_MODEL = os.getenv("GROQ_CHAT_MODEL", "llama-3.3-70b-versatile")
+CHAT_MODEL = os.getenv("GROQ_CHAT_MODEL", "openai/gpt-oss-120b")
 STT_MODEL = os.getenv("GROQ_STT_MODEL", "whisper-large-v3-turbo")
 
 _client = None
@@ -74,12 +75,18 @@ def ask_llm(message: str, history: list[dict], context: str, done_actions: list[
             messages.append({"role": turn["role"], "content": turn["content"]})
     messages.append({"role": "user", "content": message})
 
+    extra = {}
+    if CHAT_MODEL.startswith("openai/gpt-oss"):
+        # reasoning model - keep thinking short so voice replies stay fast
+        extra["reasoning_effort"] = "low"
+
     resp = get_client().chat.completions.create(
         model=CHAT_MODEL,
         messages=messages,
         temperature=0.3,
-        max_tokens=400,
+        max_tokens=1024,
         response_format={"type": "json_object"},
+        **extra,
     )
     raw = resp.choices[0].message.content
 

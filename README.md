@@ -31,7 +31,7 @@ flowchart LR
     S -- audio --> T["/transcribe<br/>Groq Whisper"] -- text --> S
     S -- text + history --> C["/chat"]
     C --> R[TF-IDF retriever<br/>knowledge base sections]
-    R --> L[Groq Llama 3.3 70B<br/>JSON: reply + action]
+    R --> L[Groq GPT-OSS 120B<br/>JSON: reply + action]
     L --> V{action?}
     V -- none --> S
     V -- enrollment / callback / escalation --> E[Validate details<br/>send emails + log lead]
@@ -57,7 +57,7 @@ Why TF-IDF and not embeddings? The knowledge base is a single page (~15 sections
 |---|---|
 | Backend API | Python 3.10+, FastAPI |
 | Frontend | Streamlit |
-| LLM | Groq - Llama 3.3 70B (JSON mode) |
+| LLM | Groq - GPT-OSS 120B (JSON mode, low reasoning effort) |
 | Speech-to-text | Groq - Whisper large v3 turbo |
 | Text-to-speech | gTTS |
 | Retrieval | scikit-learn TF-IDF |
