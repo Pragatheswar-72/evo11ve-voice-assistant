@@ -64,7 +64,7 @@ def _send_smtp(to: str, subject: str, body: str):
 def _send_brevo(to: str, subject: str, body: str):
     resp = requests.post(
         "https://api.brevo.com/v3/smtp/email",
-        headers={"api-key": os.environ["BREVO_API_KEY"], "Content-Type": "application/json"},
+        headers={"api-key": os.environ["BREVO_API_KEY"].strip().strip("\"'"), "Content-Type": "application/json"},
         json={
             "sender": {"name": SENDER_NAME, "email": _sender_email()},
             "to": [{"email": to}],

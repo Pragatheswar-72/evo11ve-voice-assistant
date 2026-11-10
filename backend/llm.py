@@ -19,7 +19,8 @@ _client = None
 def get_client() -> Groq:
     global _client
     if _client is None:
-        api_key = os.getenv("GROQ_API_KEY")
+        # strip spaces/quotes that sometimes get copied along with the key
+        api_key = os.getenv("GROQ_API_KEY", "").strip().strip("\"'")
         if not api_key:
             raise RuntimeError("GROQ_API_KEY is not set")
         _client = Groq(api_key=api_key)
