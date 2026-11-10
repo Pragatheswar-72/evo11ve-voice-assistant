@@ -9,7 +9,7 @@ speech-to-text uses Whisper.
 import json
 import os
 
-from groq import Groq
+from groq import BadRequestError, Groq
 
 CHAT_MODEL = os.getenv("GROQ_CHAT_MODEL", "openai/gpt-oss-120b")
 STT_MODEL = os.getenv("GROQ_STT_MODEL", "whisper-large-v3-turbo")
@@ -35,7 +35,7 @@ simple and conversational. Do not use markdown, bullet points or emojis.
 RULES
 1. Answer ONLY from the CONTEXT below. If the answer is not in the context, say you don't have that
    detail and offer to arrange a callback or connect them to the Evo11ve team. Never make up dates,
-   prices, discounts or policies.
+   prices, discounts or policies, and use numbers (hours, weeks, price) exactly as written in the context.
 2. If the question is not about Evo11ve or the AI Skills Program, politely say you can only help with
    the AI Skills Program.
 3. You can do three actions:
@@ -77,22 +77,30 @@ def ask_llm(message: str, history: list[dict], context: str, done_actions: list[
 
     extra = {}
     if CHAT_MODEL.startswith("openai/gpt-oss"):
-        # reasoning model - keep thinking short so voice replies stay fast
-        extra["reasoning_effort"] = "low"
-
-    resp = get_client().chat.completions.create(
-        model=CHAT_MODEL,
-        messages=messages,
-        temperature=0.3,
-        max_tokens=1024,
-        response_format={"type": "json_object"},
-        **extra,
-    )
-    raw = resp.choices[0].message.content
+        # reasoning model - medium effort is accurate enough and still fast on Groq
+        extra["reasoning_effort"] = "medium"
 
     try:
-        data = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
+        resp = get_client().chat.completions.create(
+            model=CHAT_MODEL,
+            messages=messages,
+            temperature=0.3,
+            max_tokens=2048,
+            response_format={"type": "json_object"},
+            **extra,
+        )
+        raw = resp.choices[0].message.content
+    except BadRequestError as e:
+        # Groq rejects the answer if the model wrote plain text instead of JSON,
+        # but it sends back what the model wrote - use that as the reply
+        body = e.body if isinstance(e.body, dict) else {}
+        err = body.get("error", body)
+        raw = err.get("failed_generation") if isinstance(err, dict) else None
+        if not raw:
+            raise
+
+    data = parse_json(raw)
+    if data is None:
         # model didn't return proper JSON - just use the text as the reply
         data = {"reply": raw or "Sorry, I didn't get that. Could you say it again?", "action": "none"}
 
@@ -103,6 +111,23 @@ def ask_llm(message: str, history: list[dict], context: str, done_actions: list[
     data["action"] = data["action"].lower() or "none"
     data["email"] = data["email"].replace(" ", "").lower()
     return data
+
+
+def parse_json(raw) -> dict | None:
+    """Parse the model output as JSON, also when it's wrapped in extra text."""
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        start, end = raw.find("{"), raw.rfind("}")
+        if start == -1 or end <= start:
+            return None
+        try:
+            data = json.loads(raw[start:end + 1])
+        except json.JSONDecodeError:
+            return None
+    return data if isinstance(data, dict) else None
 
 
 def transcribe(audio_bytes: bytes, filename: str = "audio.wav") -> str:

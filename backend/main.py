@@ -60,9 +60,13 @@ def chat(req: ChatRequest):
     if not message:
         raise HTTPException(400, "Empty message")
 
-    # use the previous user message too, so follow-ups like "how much is it?" still retrieve well
+    # search with the current message, and also with the previous user message added,
+    # so follow-ups like "how much is it?" still find the right sections
     prev_user = [t["content"] for t in req.history if t.get("role") == "user"][-1:]
-    context = "\n\n".join(kb.search(" ".join(prev_user + [message])))
+    sections = kb.search(message)
+    if prev_user:
+        sections += kb.search(" ".join(prev_user + [message]))
+    context = "\n\n".join(list(dict.fromkeys(sections))[:5])
 
     try:
         result = ask_llm(message, req.history, context, req.done_actions)
@@ -76,8 +80,10 @@ def chat(req: ChatRequest):
     if action in ("enrollment", "callback", "escalation"):
         missing = check_details(action, result)
         if missing:
-            # model tried to act without enough info - ask instead of sending a broken email
-            result["reply"] = f"Sure, I can help with that. Could you please share your {missing}?"
+            # model tried to act without enough info - don't send anything yet.
+            # keep its reply if it's already asking the user something, otherwise ask for the details
+            if not result["reply"].rstrip().endswith("?"):
+                result["reply"] = f"Sure, I can help with that. Could you please share your {missing}?"
             action = "none"
         elif action in req.done_actions:
             action = "none"
